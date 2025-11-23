@@ -36,9 +36,10 @@ extern "C" {
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
-/* USER CODE BEGIN ET */
+/* USER CODE BEGIN EV */
 
-/* USER CODE END ET */
+extern bool tabCompletion;
+/* USER CODE END EV */
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */

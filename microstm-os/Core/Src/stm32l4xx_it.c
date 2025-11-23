@@ -44,6 +44,7 @@
 	uint16_t inPointer=0;
 	char inBuffer[2048];
 	bool dataRxd=false;
+    bool tabCompletion = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -206,18 +207,37 @@ void SysTick_Handler(void)
 void USART2_IRQHandler(void)
 {
   /* USER CODE BEGIN USART2_IRQn 0 */
-	uint32_t isr = USART2->ISR;
-	if (isr & USART_ISR_RXNE) {
-			char inByte = USART2->RDR;
-			inBuffer[inPointer++] = inByte;
-			if (inPointer > 2047)
-				inPointer = 0;
-			inBuffer[inPointer] = 0;
-			if (inByte == '\r'){
-				dataRxd = true;
-				inPointer = 0;
-			}
-	}
+    uint32_t isr = USART2->ISR;
+    if (isr & USART_ISR_RXNE) {
+        char inByte = USART2->RDR;
+
+        if (inByte == '\r' || inByte == '\n') {
+            // Echo newline
+            char newline[] = "\r\n";
+            HAL_UART_Transmit(&huart2, (uint8_t*)newline, sizeof(newline) - 1, 1000);
+
+            // Terminate the string and signal that data is ready
+            inBuffer[inPointer] = 0;
+            dataRxd = true;
+            inPointer = 0;
+            } else if (inByte == '\b' || inByte == 127) {
+                // Handle backspace
+                if (inPointer > 0) {
+                    inPointer--;
+                    // Erase character from terminal: backspace, space, backspace
+                    char backspace_seq[] = "\b \b";
+                    HAL_UART_Transmit(&huart2, (uint8_t*)backspace_seq, sizeof(backspace_seq) - 1, 1000);
+                }
+            } else if (inByte == '\t') {
+                tabCompletion = true;
+            } else {
+                // Echo other characters and add to buffer
+                if (inPointer < sizeof(inBuffer) - 1) {
+                    HAL_UART_Transmit(&huart2, (uint8_t*)&inByte, 1, 1000);
+                    inBuffer[inPointer++] = inByte;
+                }
+            }
+    }
   /* USER CODE END USART2_IRQn 0 */
   HAL_UART_IRQHandler(&huart2);
   /* USER CODE BEGIN USART2_IRQn 1 */
