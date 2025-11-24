@@ -67,6 +67,11 @@ static const char* commands[] = {
     "cat",
     "rm",
     "BLUE",
+	"RED",
+	"GREEN",
+	"WHITE",
+	"ON",
+	"OFF",
     "clear",
 	"exit",
     NULL // Sentinel value to mark the end of the array

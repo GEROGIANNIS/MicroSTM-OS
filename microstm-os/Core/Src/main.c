@@ -128,6 +128,24 @@ int main(void)
                     } else if (args != NULL && strcmp(args, "OFF") == 0) {
                         GPIOC->ODR &= ~(1 << 6);
                     }
+                } else if (strcmp(command, "RED") == 0) {
+                    if (args != NULL && strcmp(args, "ON") == 0) {
+                        GPIOC->ODR |= (1 << 7);
+                    } else if (args != NULL && strcmp(args, "OFF") == 0) {
+                        GPIOC->ODR &= ~(1 << 7);
+                    }
+                } else if (strcmp(command, "GREEN") == 0) {
+                    if (args != NULL && strcmp(args, "ON") == 0) {
+                        GPIOC->ODR |= (1 << 8);
+                    } else if (args != NULL && strcmp(args, "OFF") == 0) {
+                        GPIOC->ODR &= ~(1 << 8);
+                    }
+                } else if (strcmp(command, "WHITE") == 0) {
+                    if (args != NULL && strcmp(args, "ON") == 0) {
+                        GPIOC->ODR |= (1 << 9);
+                    } else if (args != NULL && strcmp(args, "OFF") == 0) {
+                        GPIOC->ODR &= ~(1 << 9);
+                    }
                 } else if (strcmp(command, "help") == 0) {
                     const char helpMsg[] =
                         "Available commands:\r\n"
@@ -137,7 +155,10 @@ int main(void)
                         "  rm, cp, mv          - Manage files\r\n"
                         "  touch, find         - Create/search files\r\n"
                         "  cat, head, tail     - View file contents\r\n"
-                        "  BLUE ON / BLUE OFF  - Control onboard LED\r\n"
+                        "  BLUE ON / BLUE OFF  - Control onboard BLUE LED\r\n"
+                        "  RED ON / RED OFF    - Control onboard RED LED\r\n"
+                        "  GREEN ON / GREEN OFF- Control onboard GREEN LED\r\n"
+                        "  WHITE ON / WHITE OFF- Control onboard WHITE LED\r\n"
 						"  exit                - Close the connection\r\n";
                     HAL_UART_Transmit(&huart2, (uint8_t*)helpMsg, (uint16_t)strlen(helpMsg), 1000);
                 } else if (strcmp(command, "pwd") == 0) {
