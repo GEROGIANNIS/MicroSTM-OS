@@ -10,7 +10,10 @@ MicroSTM-OS aims to bring basic operating system functionalities to STM32 microc
 
 - Basic shell commands inspired by Linux for file management: `ls`, `pwd`, `cd`, `mkdir`, `rmdir`, `rm`, `cp`, `mv`, `touch`, `find`.
 - File content viewing commands: `cat`, `head`, `tail`.
-- Command-line interface accessible via serial port.
+- Enhanced command-line interface accessible via serial port, now including:
+    - Command history with arrow key navigation.
+    - Improved tab autocompletion for commands and file paths.
+    - `exit` command to gracefully close the connection.
 - SPI monitoring capabilities integrated to track SPI device communication.
 - Modular and lightweight design suitable for resource-constrained MCU environments.
 - Foundation for developing more advanced OS-like features on STM32 MCUs.
