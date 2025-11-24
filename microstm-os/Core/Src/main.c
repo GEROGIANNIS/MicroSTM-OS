@@ -48,6 +48,9 @@ UART_HandleTypeDef huart2;
 	extern uint16_t inPointer;
 	extern char inBuffer[2048];
 	extern bool dataRxd;
+	extern bool tabCompletion;
+
+    char prompt_buffer[MAX_PATH_SIZE + 3]; // Global prompt buffer
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -100,10 +103,7 @@ int main(void)
 	const char initMsg[] = "MicroSTM-OS initialized\r\n";
 	HAL_UART_Transmit(&huart2, (uint8_t *)initMsg, (uint16_t)strlen(initMsg), 1000);
     
-    char prompt[MAX_PATH_SIZE + 3];
-    fs_get_cwd_path(prompt, MAX_PATH_SIZE);
-    strcat(prompt, "> ");
-    HAL_UART_Transmit(&huart2, (uint8_t*)prompt, (uint16_t)strlen(prompt), 1000);
+    print_prompt(); // Initial prompt
 
   	  USART2->CR1 |= USART_CR1_RXNEIE;
   /* USER CODE END 2 */
@@ -137,7 +137,8 @@ int main(void)
                         "  rm, cp, mv          - Manage files\r\n"
                         "  touch, find         - Create/search files\r\n"
                         "  cat, head, tail     - View file contents\r\n"
-                        "  BLUE ON / BLUE OFF  - Control onboard LED\r\n";
+                        "  BLUE ON / BLUE OFF  - Control onboard LED\r\n"
+						"  exit                - Close the connection\r\n";
                     HAL_UART_Transmit(&huart2, (uint8_t*)helpMsg, (uint16_t)strlen(helpMsg), 1000);
                 } else if (strcmp(command, "pwd") == 0) {
                     fs_pwd(outBuffer, sizeof(outBuffer));
@@ -152,7 +153,7 @@ int main(void)
                     }
                 } else if (strcmp(command, "cd") == 0) {
                     if (fs_cd(args) != 0) {
-                        const char errMsg[] = "cd failed\r-n";
+                        const char errMsg[] = "cd failed\r\n";
                         HAL_UART_Transmit(&huart2, (uint8_t*)errMsg, (uint16_t)strlen(errMsg), 1000);
                     }
                 } else if (strcmp(command, "rmdir") == 0) {
@@ -178,6 +179,11 @@ int main(void)
                         const char errMsg[] = "rm failed\r\n";
                         HAL_UART_Transmit(&huart2, (uint8_t*)errMsg, (uint16_t)strlen(errMsg), 1000);
                     }
+                } else if (strcmp(command, "exit") == 0) {
+                    const char exitMsg[] = "Goodbye!\r\n";
+                    HAL_UART_Transmit(&huart2, (uint8_t*)exitMsg, (uint16_t)strlen(exitMsg), 1000);
+                    HAL_UART_DeInit(&huart2);
+                    while(1);
                 } else {
                     snprintf(outBuffer, sizeof(outBuffer), "Unknown command: %s\r\n", command);
                     HAL_UART_Transmit(&huart2, (uint8_t*)outBuffer, strlen(outBuffer), 1000);
@@ -187,9 +193,7 @@ int main(void)
             // Clear the input buffer for the next command
             memset(inBuffer, 0, sizeof(inBuffer));
   
-            fs_get_cwd_path(prompt, MAX_PATH_SIZE);
-            strcat(prompt, "> ");
-            HAL_UART_Transmit(&huart2, (uint8_t*)prompt, (uint16_t)strlen(prompt), 1000);
+            print_prompt();
   	  }
   
       if (tabCompletion == true) {
@@ -222,10 +226,13 @@ int main(void)
   /* USER CODE END 3 */
 }
 
-/**
-  * @brief System Clock Configuration
-  * @retval None
-  */
+/* USER CODE BEGIN 4 */
+void print_prompt(void) {
+    fs_get_cwd_path(prompt_buffer, MAX_PATH_SIZE);
+    strcat(prompt_buffer, "> ");
+    HAL_UART_Transmit(&huart2, (uint8_t*)prompt_buffer, (uint16_t)strlen(prompt_buffer), 1000);
+}
+/* USER CODE END 4 */
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};

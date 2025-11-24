@@ -6,6 +6,55 @@
 static Directory root_dir;
 static Directory* current_dir;
 
+// A helper function to find a directory by path
+static Directory* fs_find_dir(const char* path) {
+    if (path == NULL) {
+        return NULL;
+    }
+
+    if (strcmp(path, ".") == 0 || strcmp(path, "") == 0) {
+        return current_dir;
+    }
+
+    if (strcmp(path, "/") == 0) {
+        return &root_dir;
+    }
+
+    char path_copy[MAX_PATH_SIZE];
+    strncpy(path_copy, path, MAX_PATH_SIZE);
+    path_copy[MAX_PATH_SIZE - 1] = '\0';
+
+    Directory* start_dir = (path[0] == '/') ? &root_dir : current_dir;
+    Directory* target_dir = start_dir;
+
+    char* token = strtok(path_copy, "/");
+    while (token != NULL) {
+        if (strcmp(token, "..") == 0) {
+            if (target_dir->parent != NULL) {
+                target_dir = target_dir->parent;
+            }
+            token = strtok(NULL, "/");
+            continue;
+        }
+
+        Directory* subdir = target_dir->subdirs;
+        while (subdir != NULL) {
+            if (strcmp(subdir->name, token) == 0) {
+                target_dir = subdir;
+                break;
+            }
+            subdir = subdir->next;
+        }
+
+        if (subdir == NULL) {
+            return NULL; // Path not found
+        }
+
+        token = strtok(NULL, "/");
+    }
+
+    return target_dir;
+}
 // List of available commands for autocompletion
 static const char* commands[] = {
     "help",
@@ -19,6 +68,7 @@ static const char* commands[] = {
     "rm",
     "BLUE",
     "clear",
+	"exit",
     NULL // Sentinel value to mark the end of the array
 };
 
@@ -138,18 +188,11 @@ int fs_cd(char* name) {
         return -1; // Invalid name
     }
 
-    if (strcmp(name, "..") == 0) {
-        if (current_dir->parent != NULL) {
-            current_dir = current_dir->parent;
-        }
-        return 0; // Success
-    }
+    Directory* new_dir = fs_find_dir(name);
 
-    for (Directory* dir = current_dir->subdirs; dir != NULL; dir = dir->next) {
-        if (strcmp(dir->name, name) == 0) {
-            current_dir = dir;
-            return 0; // Success
-        }
+    if (new_dir != NULL) {
+        current_dir = new_dir;
+        return 0; // Success
     }
 
     return -2; // Directory not found
@@ -282,78 +325,77 @@ int fs_autocomplete(char* buffer, int len, char* out_buffer) {
 
     char partial_name[MAX_FILENAME_SIZE];
     strncpy(partial_name, buffer, len);
-    partial_name[len] = 0; // Null-terminate the partial name
+    partial_name[len] = 0;
 
     char* best_match = NULL;
     int match_count = 0;
 
-    // If at the beginning of the command, try to autocomplete commands first
-    if (buffer == inBuffer) { // inBuffer is the start of the whole input
+    // Command completion (only for the first word)
+    if (buffer == inBuffer) {
         for (int i = 0; commands[i] != NULL; i++) {
             if (strncmp(commands[i], partial_name, len) == 0) {
-                if (best_match == NULL) {
-                    best_match = (char*)commands[i];
-                    match_count = 1;
-                } else {
-                    if (strcmp(best_match, commands[i]) != 0) {
-                        match_count++;
-                    }
-                }
+                if (best_match == NULL) best_match = (char*)commands[i];
+                match_count++;
             }
+        }
+        if (match_count == 1) {
+            strncpy(out_buffer, best_match + len, MAX_FILENAME_SIZE - 1);
+            out_buffer[MAX_FILENAME_SIZE - 1] = '\0';
+            return strlen(out_buffer);
+        }
+    }
+
+    // Path completion
+    match_count = 0;
+    best_match = NULL;
+
+    char path_buf[MAX_PATH_SIZE];
+    strncpy(path_buf, partial_name, MAX_PATH_SIZE);
+    path_buf[MAX_PATH_SIZE - 1] = '\0';
+
+    char* last_slash = strrchr(path_buf, '/');
+    Directory* search_dir;
+    char* partial_item;
+
+    if (last_slash != NULL) {
+        partial_item = last_slash + 1;
+        if (last_slash == path_buf) {
+            search_dir = &root_dir;
+        } else {
+            *last_slash = '\0';
+            search_dir = fs_find_dir(path_buf);
+        }
+    } else {
+        search_dir = current_dir;
+        partial_item = path_buf;
+    }
+
+    if (search_dir == NULL) return 0;
+
+    int partial_item_len = strlen(partial_item);
+
+    // Search subdirectories
+    for (Directory* dir = search_dir->subdirs; dir != NULL; dir = dir->next) {
+        if (strncmp(dir->name, partial_item, partial_item_len) == 0) {
+            if (best_match == NULL) best_match = dir->name;
+            match_count++;
+        }
+    }
+
+    // Search files
+    for (File* file = search_dir->files; file != NULL; file = file->next) {
+        if (strncmp(file->name, partial_item, partial_item_len) == 0) {
+            if (best_match == NULL) best_match = file->name;
+            match_count++;
         }
     }
 
     if (match_count == 1) {
-        int completion_len = strlen(best_match) - len;
-        if (completion_len > 0) {
-            strncpy(out_buffer, best_match + len, completion_len);
-            out_buffer[completion_len] = 0;
-            return completion_len;
-        }
+        strncpy(out_buffer, best_match + partial_item_len, MAX_FILENAME_SIZE - 1);
+        out_buffer[MAX_FILENAME_SIZE - 1] = '\0';
+        return strlen(out_buffer);
     }
 
-    // If no unique command completion or if not at the beginning, try files/directories
-    if (match_count != 1 || buffer != inBuffer) {
-        match_count = 0; // Reset for file/directory search
-        best_match = NULL;
-
-        // Check subdirectories
-        for (Directory* dir = current_dir->subdirs; dir != NULL; dir = dir->next) {
-            if (strncmp(dir->name, partial_name, len) == 0) {
-                if (best_match == NULL) {
-                    best_match = dir->name;
-                    match_count = 1;
-                } else {
-                    if (strcmp(best_match, dir->name) != 0) {
-                        match_count++;
-                    }
-                }
-            }
-        }
-
-        // Check files
-        for (File* file = current_dir->files; file != NULL; file = file->next) {
-            if (strncmp(file->name, partial_name, len) == 0) {
-                if (best_match == NULL) {
-                    best_match = file->name;
-                    match_count = 1;
-                } else {
-                    if (strcmp(best_match, file->name) != 0) {
-                        match_count++;
-                    }
-                }
-            }
-        }
-    }
-
-    if (match_count == 1) {
-        int completion_len = strlen(best_match) - len;
-        if (completion_len > 0) {
-            strncpy(out_buffer, best_match + len, completion_len);
-            out_buffer[completion_len] = 0;
-            return completion_len;
-        }
-    }
     return 0;
 }
 

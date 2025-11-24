@@ -55,14 +55,22 @@ extern bool tabCompletion;
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+extern void print_prompt(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define MAX_COMMAND_LENGTH 2048
+#define HISTORY_SIZE 10
 
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
+
+/* Exported variables --------------------------------------------------------*/
+extern char commandHistory[HISTORY_SIZE][MAX_COMMAND_LENGTH];
+extern int historyCount;
+extern int historyIndex;
+extern int esc_sequence_state;
 
 #ifdef __cplusplus
 }
