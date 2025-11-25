@@ -1,0 +1,4 @@
+../Core/fonts/gfx_text.c:6:19:is_printable	3
+../Core/fonts/gfx_text.c:10:6:GFX_DrawChar	14
+../Core/fonts/gfx_text.c:49:6:GFX_DrawString	3
+../Core/fonts/gfx_text.c:65:9:GFX_DrawStringWrap	4

@@ -36,10 +36,10 @@ extern "C" {
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
-/* USER CODE BEGIN EV */
-
+/* USER CODE BEGIN ET */
 extern bool tabCompletion;
-/* USER CODE END EV */
+
+/* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
@@ -51,6 +51,8 @@ extern bool tabCompletion;
 
 /* USER CODE END EM */
 
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
@@ -59,18 +61,17 @@ extern void print_prompt(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define MAX_COMMAND_LENGTH 2048
-#define HISTORY_SIZE 10
+#define LCD_RST_Pin GPIO_PIN_6
+#define LCD_RST_GPIO_Port GPIOB
+#define LCD_DC_Pin GPIO_PIN_7
+#define LCD_DC_GPIO_Port GPIOB
+#define LCD_CS_Pin GPIO_PIN_8
+#define LCD_CS_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
-
+#define MAX_COMMAND_LENGTH 2048
+#define HISTORY_SIZE 10
 /* USER CODE END Private defines */
-
-/* Exported variables --------------------------------------------------------*/
-extern char commandHistory[HISTORY_SIZE][MAX_COMMAND_LENGTH];
-extern int historyCount;
-extern int historyIndex;
-extern int esc_sequence_state;
 
 #ifdef __cplusplus
 }
