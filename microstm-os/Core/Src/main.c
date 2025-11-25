@@ -134,10 +134,9 @@ int main(void)
   ST7735_SetInversion(false);
 
   ST7735_SetRotation(ST7735_ROTATION_90);
-  ST7735_FillScreen(COLOR_BLUE);
+  ST7735_FillScreen(COLOR_BLACK);
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
 
-  GFX_DrawString(4, LCD_TOP_OFFSET + 4, "Hello World\nEmbedded systems", COLOR_WHITE, COLOR_BLUE, 1, &Font5x7);
 
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
@@ -383,13 +382,13 @@ static uint8_t lcd_current_line = 0;
 
 void LCD_Print(const char* text, uint16_t color) {
     // Clear the current line before drawing new text
-    ST7735_FillRect(0, LCD_TOP_OFFSET + lcd_current_line * LCD_LINE_HEIGHT, ST7735_Width(), LCD_LINE_HEIGHT, COLOR_BLUE);
-    GFX_DrawString(4, LCD_TOP_OFFSET + lcd_current_line * LCD_LINE_HEIGHT, (char*)text, color, COLOR_BLUE, 1, &Font5x7);
+    ST7735_FillRect(0, LCD_TOP_OFFSET + lcd_current_line * LCD_LINE_HEIGHT, ST7735_Width(), LCD_LINE_HEIGHT, COLOR_BLACK);
+    GFX_DrawString(4, LCD_TOP_OFFSET + lcd_current_line * LCD_LINE_HEIGHT, (char*)text, color, COLOR_BLACK, 1, &Font5x7);
     lcd_current_line++;
     if (lcd_current_line >= LCD_MAX_LINES) {
         lcd_current_line = 0; // Wrap around or scroll up
         // For simplicity, just wrap around. A more advanced implementation would scroll.
-        ST7735_FillRect(0, LCD_TOP_OFFSET, ST7735_Width(), ST7735_Height() - LCD_TOP_OFFSET, COLOR_BLUE); // Clear relevant part of screen on wrap around for now
+        ST7735_FillRect(0, LCD_TOP_OFFSET, ST7735_Width(), ST7735_Height() - LCD_TOP_OFFSET, COLOR_BLACK); // Clear relevant part of screen on wrap around for now
     }
 }
 
@@ -500,7 +499,7 @@ void handle_serial_and_display(char* command, char* args, char* outBuffer, size_
             } else if (strcmp(command, "clear") == 0) {
                 const char clearScreen[] = "\033[2J\033[H";
                 HAL_UART_Transmit(&huart2, (uint8_t*)clearScreen, strlen(clearScreen), 1000);
-                ST7735_FillScreen(COLOR_BLUE);
+                ST7735_FillScreen(COLOR_BLACK);
                 lcd_current_line = 0;
                 LCD_Print("LCD Cleared", COLOR_WHITE);
             } else if (strcmp(command, "touch") == 0) {
