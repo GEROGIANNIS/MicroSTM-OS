@@ -58,6 +58,7 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 extern void print_prompt(void);
+extern void redraw_input_line(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
@@ -71,6 +72,7 @@ extern void print_prompt(void);
 /* USER CODE BEGIN Private defines */
 #define MAX_COMMAND_LENGTH 2048
 #define HISTORY_SIZE 10
+#define MAX_PATH_SIZE 256
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

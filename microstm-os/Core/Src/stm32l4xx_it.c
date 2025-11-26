@@ -22,6 +22,8 @@
 #include "stm32l4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <string.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -60,7 +62,6 @@
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
@@ -68,6 +69,23 @@ extern UART_HandleTypeDef huart2;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
+
+extern char prompt_buffer[];
+
+void redraw_input_line(void) {
+    char full_line[2048 + MAX_PATH_SIZE + 3];
+    snprintf(full_line, sizeof(full_line), "\r\033[K%s%s", prompt_buffer, inBuffer);
+    HAL_UART_Transmit(&huart2, (uint8_t*)full_line, strlen(full_line), 1000);
+
+    // Move cursor back to the correct position
+    if (strlen(inBuffer) > inPointer) {
+        char move_cursor_left[16];
+        snprintf(move_cursor_left, sizeof(move_cursor_left), "\033[%dD", (int)(strlen(inBuffer) - inPointer));
+        HAL_UART_Transmit(&huart2, (uint8_t*)move_cursor_left, strlen(move_cursor_left), 1000);
+    }
+    
+    char_received = true;
+}
 
 /******************************************************************************/
 /*           Cortex-M4 Processor Interruption and Exception Handlers          */
@@ -217,103 +235,84 @@ void USART2_IRQHandler(void)
     if (isr & USART_ISR_RXNE) {
         char inByte = USART2->RDR;
 
-        if (esc_sequence_state == 2) { // ESC [ received, expect A or B
-            esc_sequence_state = 0; // Reset state
-            if (inByte == 'A') { // Up arrow
-                if (historyCount > 0 && historyIndex > 0) {
-                    historyIndex--;
-                    // Clear current line
-                    char clear_line[] = "\r\033[K";
-                    HAL_UART_Transmit(&huart2, (uint8_t*)clear_line, sizeof(clear_line) - 1, 1000);
-
-                    // Print prompt
-                    extern void print_prompt(void);
-                    print_prompt();
-
-                    strncpy(inBuffer, commandHistory[historyIndex], MAX_COMMAND_LENGTH);
-                    inPointer = strlen(inBuffer);
-                    HAL_UART_Transmit(&huart2, (uint8_t*)inBuffer, inPointer, 1000);
-                    char_received = true;
-                }
-            } else if (inByte == 'B') { // Down arrow
-                if (historyCount > 0 && historyIndex < historyCount -1) {
-                    historyIndex++;
-                    // Clear current line
-                    char clear_line[] = "\r\033[K";
-                    HAL_UART_Transmit(&huart2, (uint8_t*)clear_line, sizeof(clear_line) - 1, 1000);
-
-                    // Print prompt
-                    extern void print_prompt(void);
-                    print_prompt();
-
-                    strncpy(inBuffer, commandHistory[historyIndex], MAX_COMMAND_LENGTH);
-                    inPointer = strlen(inBuffer);
-                    HAL_UART_Transmit(&huart2, (uint8_t*)inBuffer, inPointer, 1000);
-                    char_received = true;
-                } else if (historyIndex == historyCount -1) { // If at the last command, clear input
-                    historyIndex = historyCount; // Move past the last command in history
-                    // Clear current line
-                    char clear_line[] = "\r\033[K";
-                    HAL_UART_Transmit(&huart2, (uint8_t*)clear_line, sizeof(clear_line) - 1, 1000);
-
-                    // Print prompt
-                    extern void print_prompt(void);
-                    print_prompt();
-
-                    memset(inBuffer, 0, sizeof(inBuffer));
-                    inPointer = 0;
-                    char_received = true;
-                }
+        if (esc_sequence_state == 2) { // We received ESC [
+            esc_sequence_state = 0; // Reset state after handling
+            switch (inByte) {
+                case 'A': // Up arrow
+                    if (historyCount > 0 && historyIndex > 0) {
+                        historyIndex--;
+                        strncpy(inBuffer, commandHistory[historyIndex], MAX_COMMAND_LENGTH);
+                        inPointer = strlen(inBuffer);
+                        redraw_input_line();
+                    }
+                    break;
+                case 'B': // Down arrow
+                    if (historyCount > 0 && historyIndex < historyCount - 1) {
+                        historyIndex++;
+                        strncpy(inBuffer, commandHistory[historyIndex], MAX_COMMAND_LENGTH);
+                        inPointer = strlen(inBuffer);
+                        redraw_input_line();
+                    } else if (historyIndex == historyCount - 1) {
+                        historyIndex = historyCount;
+                        memset(inBuffer, 0, sizeof(inBuffer));
+                        inPointer = 0;
+                        redraw_input_line();
+                    }
+                    break;
+                case 'C': // Right arrow
+                    if (inPointer < strlen(inBuffer)) {
+                        inPointer++;
+                        redraw_input_line();
+                    }
+                    break;
+                case 'D': // Left arrow
+                    if (inPointer > 0) {
+                        inPointer--;
+                        redraw_input_line();
+                    }
+                    break;
             }
-        } else if (esc_sequence_state == 1) { // ESC received, expect [
+        } else if (esc_sequence_state == 1) { // We received ESC
             if (inByte == '[') {
                 esc_sequence_state = 2;
             } else {
-                esc_sequence_state = 0; // Not an escape sequence we care about
+                esc_sequence_state = 0;
             }
-        } else if (inByte == 27) { // ESC character
+        } else if (inByte == 27) { // ESC char
             esc_sequence_state = 1;
         } else if (inByte == '\r' || inByte == '\n') {
             // Echo newline
             char newline[] = "\r\n";
             HAL_UART_Transmit(&huart2, (uint8_t*)newline, sizeof(newline) - 1, 1000);
 
-            // Save command to history if not empty and different from last command
+            // Save command to history
             if (inPointer > 0 && (historyCount == 0 || strcmp(inBuffer, commandHistory[(historyCount - 1 + HISTORY_SIZE) % HISTORY_SIZE]) != 0)) {
                 strncpy(commandHistory[historyCount], inBuffer, MAX_COMMAND_LENGTH - 1);
                 commandHistory[historyCount][MAX_COMMAND_LENGTH - 1] = 0; // Ensure null termination
                 historyCount = (historyCount + 1) % HISTORY_SIZE;
             }
-            historyIndex = historyCount; // Reset history index to the latest command
+            historyIndex = historyCount;
 
-            // Terminate the string and signal that data is ready
             inBuffer[inPointer] = 0;
             dataRxd = true;
             inPointer = 0;
-            esc_sequence_state = 0; // Reset state
-            } else if (inByte == '\b' || inByte == 127) {
-                // Handle backspace
-                if (inPointer > 0) {
-                    inPointer--;
-                    inBuffer[inPointer] = '\0'; // Null-terminate the string at the new end
-                    // Erase character from terminal: backspace, space, backspace
-                    char backspace_seq[] = "\b \b";
-                    HAL_UART_Transmit(&huart2, (uint8_t*)backspace_seq, sizeof(backspace_seq) - 1, 1000);
-                    char_received = true;
-                }
-                esc_sequence_state = 0; // Reset state
-            } else if (inByte == '\t') {
-                tabCompletion = true;
-                esc_sequence_state = 0; // Reset state
-            } else {
-                // Echo other characters and add to buffer
-                if (inPointer < sizeof(inBuffer) - 1) {
-                    HAL_UART_Transmit(&huart2, (uint8_t*)&inByte, 1, 1000);
-                    inBuffer[inPointer++] = inByte;
-                    char_received = true;
-                }
-                esc_sequence_state = 0; // Reset state
+            esc_sequence_state = 0;
+        } else if (inByte == '\b' || inByte == 127) { // Backspace
+            if (inPointer > 0) {
+                memmove(&inBuffer[inPointer - 1], &inBuffer[inPointer], strlen(inBuffer) - inPointer + 1);
+                inPointer--;
+                redraw_input_line();
             }
+        } else if (inByte == '\t') {
+            tabCompletion = true;
+            esc_sequence_state = 0;
+        } else if (inPointer < sizeof(inBuffer) - 1) { // Regular character
+            memmove(&inBuffer[inPointer + 1], &inBuffer[inPointer], strlen(inBuffer) - inPointer + 1);
+            inBuffer[inPointer] = inByte;
+            inPointer++;
+            redraw_input_line();
+            esc_sequence_state = 0;
+        }
     }
   /* USER CODE END USART2_IRQn 0 */
   HAL_UART_IRQHandler(&huart2);
