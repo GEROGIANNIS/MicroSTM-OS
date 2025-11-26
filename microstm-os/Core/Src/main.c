@@ -74,6 +74,7 @@ UART_HandleTypeDef huart2;
 	extern char inBuffer[2048];
 	extern bool dataRxd;
 	extern bool tabCompletion;
+    extern bool char_received;
 
     char prompt_buffer[MAX_PATH_SIZE + 3]; // Global prompt buffer
 /* USER CODE END PV */
@@ -85,6 +86,7 @@ static void MX_USART2_UART_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_TIM4_Init(void);
 void LCD_Print(const char* text, uint16_t color);
+void LCD_Print_NoInc(const char* text, uint16_t color);
 void handle_serial_and_display(char* command, char* args, char* outBuffer, size_t outBufferSize);
 /* USER CODE BEGIN PFP */
 
@@ -154,6 +156,13 @@ int main(void)
     while (1)
     {
         handle_serial_and_display(command, args, outBuffer, sizeof(outBuffer));
+        if (char_received) {
+            char_received = false;
+            // Update the LCD with the current input buffer
+            char display_buffer[MAX_PATH_SIZE + 3 + 2048];
+            snprintf(display_buffer, sizeof(display_buffer), "%s%s", prompt_buffer, inBuffer);
+            LCD_Print_NoInc(display_buffer, COLOR_WHITE);
+        }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -380,10 +389,14 @@ static void MX_GPIO_Init(void)
 // Global variable to keep track of the current line on the LCD
 static uint8_t lcd_current_line = 0;
 
-void LCD_Print(const char* text, uint16_t color) {
+void LCD_Print_NoInc(const char* text, uint16_t color) {
     // Clear the current line before drawing new text
     ST7735_FillRect(0, LCD_TOP_OFFSET + lcd_current_line * LCD_LINE_HEIGHT, ST7735_Width(), LCD_LINE_HEIGHT, COLOR_BLACK);
     GFX_DrawString(4, LCD_TOP_OFFSET + lcd_current_line * LCD_LINE_HEIGHT, (char*)text, color, COLOR_BLACK, 1, &Font5x7);
+}
+
+void LCD_Print(const char* text, uint16_t color) {
+    LCD_Print_NoInc(text, color);
     lcd_current_line++;
     if (lcd_current_line >= LCD_MAX_LINES) {
         lcd_current_line = 0; // Wrap around or scroll up
@@ -397,7 +410,7 @@ void print_prompt(void) {
     strcat(prompt_buffer, "> ");
     HAL_UART_Transmit(&huart2, (uint8_t*)prompt_buffer, (uint16_t)strlen(prompt_buffer), 1000);
     // Also display prompt on LCD
-    LCD_Print(prompt_buffer, COLOR_WHITE);
+    LCD_Print_NoInc(prompt_buffer, COLOR_WHITE);
 }
 
 void unified_output(const char* text, uint16_t color) {
@@ -433,7 +446,6 @@ void unified_output(const char* text, uint16_t color) {
         LCD_Print(line_buffer, color);
     }
 }
-
 void handle_serial_and_display(char* command, char* args, char* outBuffer, size_t outBufferSize) {
     if (dataRxd == true){
         dataRxd = false;
@@ -597,8 +609,7 @@ void handle_serial_and_display(char* command, char* args, char* outBuffer, size_
             }
         }
     }
-}
-/* USER CODE END 4 */
+}/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.

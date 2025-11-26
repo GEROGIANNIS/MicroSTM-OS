@@ -45,6 +45,7 @@
 	char inBuffer[2048];
 	bool dataRxd=false;
     bool tabCompletion = false;
+    bool char_received = false;
 
     char commandHistory[HISTORY_SIZE][MAX_COMMAND_LENGTH];
     int historyCount = 0;
@@ -232,6 +233,7 @@ void USART2_IRQHandler(void)
                     strncpy(inBuffer, commandHistory[historyIndex], MAX_COMMAND_LENGTH);
                     inPointer = strlen(inBuffer);
                     HAL_UART_Transmit(&huart2, (uint8_t*)inBuffer, inPointer, 1000);
+                    char_received = true;
                 }
             } else if (inByte == 'B') { // Down arrow
                 if (historyCount > 0 && historyIndex < historyCount -1) {
@@ -247,6 +249,7 @@ void USART2_IRQHandler(void)
                     strncpy(inBuffer, commandHistory[historyIndex], MAX_COMMAND_LENGTH);
                     inPointer = strlen(inBuffer);
                     HAL_UART_Transmit(&huart2, (uint8_t*)inBuffer, inPointer, 1000);
+                    char_received = true;
                 } else if (historyIndex == historyCount -1) { // If at the last command, clear input
                     historyIndex = historyCount; // Move past the last command in history
                     // Clear current line
@@ -259,6 +262,7 @@ void USART2_IRQHandler(void)
 
                     memset(inBuffer, 0, sizeof(inBuffer));
                     inPointer = 0;
+                    char_received = true;
                 }
             }
         } else if (esc_sequence_state == 1) { // ESC received, expect [
@@ -295,6 +299,7 @@ void USART2_IRQHandler(void)
                     // Erase character from terminal: backspace, space, backspace
                     char backspace_seq[] = "\b \b";
                     HAL_UART_Transmit(&huart2, (uint8_t*)backspace_seq, sizeof(backspace_seq) - 1, 1000);
+                    char_received = true;
                 }
                 esc_sequence_state = 0; // Reset state
             } else if (inByte == '\t') {
@@ -305,6 +310,7 @@ void USART2_IRQHandler(void)
                 if (inPointer < sizeof(inBuffer) - 1) {
                     HAL_UART_Transmit(&huart2, (uint8_t*)&inByte, 1, 1000);
                     inBuffer[inPointer++] = inByte;
+                    char_received = true;
                 }
                 esc_sequence_state = 0; // Reset state
             }
