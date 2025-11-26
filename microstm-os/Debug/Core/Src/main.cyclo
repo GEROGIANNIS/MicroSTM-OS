@@ -9,4 +9,4 @@
 ../Core/Src/main.c:408:6:print_prompt	1
 ../Core/Src/main.c:416:6:unified_output	7
 ../Core/Src/main.c:449:6:handle_serial_and_display	49
-../Core/Src/main.c:618:6:Error_Handler	1
+../Core/Src/main.c:623:6:Error_Handler	1

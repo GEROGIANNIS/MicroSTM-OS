@@ -450,6 +450,11 @@ void handle_serial_and_display(char* command, char* args, char* outBuffer, size_
     if (dataRxd == true){
         dataRxd = false;
 
+        // Finalize the command line on the LCD before execution
+        char full_command_line[MAX_PATH_SIZE + 3 + 2048];
+        snprintf(full_command_line, sizeof(full_command_line), "%s%s", prompt_buffer, inBuffer);
+        LCD_Print(full_command_line, COLOR_WHITE);
+
         parse_command(inBuffer, &command, &args);
 
         if (command != NULL && strlen(command) > 0) {
