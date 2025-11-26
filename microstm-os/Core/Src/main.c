@@ -449,6 +449,7 @@ void handle_serial_and_display(char* command, char* args, char* outBuffer, size_
                 const char helpMsg[] =
                     "Available commands:\r\n"
                     "  help                - Show this message\r\n"
+                    "  echo                - Print back the arguments\r\n"
                     "  ls, pwd, cd         - File navigation\r\n"
                     "  mkdir, rmdir        - Create/remove directories\r\n"
                     "  rm, cp, mv          - Manage files\r\n"
@@ -461,6 +462,12 @@ void handle_serial_and_display(char* command, char* args, char* outBuffer, size_
                     "  exit                - Close the connection\r\n";
                 HAL_UART_Transmit(&huart2, (uint8_t*)helpMsg, (uint16_t)strlen(helpMsg), 1000);
                 LCD_Print("Help message sent to serial.", COLOR_WHITE);
+            } else if (strcmp(command, "echo") == 0) {
+                if (args != NULL) {
+                    snprintf(outBuffer, outBufferSize, "%s\r\n", args);
+                    HAL_UART_Transmit(&huart2, (uint8_t*)outBuffer, strlen(outBuffer), 1000);
+                    LCD_Print(outBuffer, COLOR_WHITE);
+                }
             } else if (strcmp(command, "pwd") == 0) {
                 fs_pwd(outBuffer, outBufferSize);
                 HAL_UART_Transmit(&huart2, (uint8_t*)outBuffer, (uint16_t)strlen(outBuffer), 1000);
