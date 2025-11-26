@@ -103,8 +103,8 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-    char* command;
-    char* args;
+    char* command = NULL;
+    char* args = NULL;
     char outBuffer[2048];
   /* USER CODE END 1 */
 
@@ -400,6 +400,40 @@ void print_prompt(void) {
     LCD_Print(prompt_buffer, COLOR_WHITE);
 }
 
+void unified_output(const char* text, uint16_t color) {
+    HAL_UART_Transmit(&huart2, (uint8_t*)text, (uint16_t)strlen(text), 1000);
+
+    // Now for the LCD, we need to handle multi-line text
+    char line_buffer[128]; // Assuming max line length for LCD is less than 128
+    const char* p_start = text;
+    const char* p_end;
+
+    while((p_end = strpbrk(p_start, "\r\n")) != NULL) {
+        size_t len = p_end - p_start;
+        if (len > 0) {
+            if (len >= sizeof(line_buffer)) {
+                len = sizeof(line_buffer) - 1;
+            }
+            strncpy(line_buffer, p_start, len);
+            line_buffer[len] = '\0';
+            LCD_Print(line_buffer, color);
+        }
+        
+        if (*p_end == '\r' && *(p_end + 1) == '\n') {
+            p_start = p_end + 2;
+        } else {
+            p_start = p_end + 1;
+        }
+    }
+
+    // Print the rest of the string if it doesn't end with a newline
+    if (*p_start != '\0') {
+        strncpy(line_buffer, p_start, sizeof(line_buffer) - 1);
+        line_buffer[sizeof(line_buffer) - 1] = '\0';
+        LCD_Print(line_buffer, color);
+    }
+}
+
 void handle_serial_and_display(char* command, char* args, char* outBuffer, size_t outBufferSize) {
     if (dataRxd == true){
         dataRxd = false;
@@ -409,41 +443,39 @@ void handle_serial_and_display(char* command, char* args, char* outBuffer, size_
         if (command != NULL && strlen(command) > 0) {
             // Debug print to serial
             snprintf(outBuffer, outBufferSize, "Command: '%s', Args: '%s'\r\n", command, args ? args : "");
-            HAL_UART_Transmit(&huart2, (uint8_t*)outBuffer, strlen(outBuffer), 1000);
-            // Also display on LCD
-            LCD_Print(outBuffer, COLOR_WHITE);
+			unified_output(outBuffer, COLOR_WHITE);
 
             if (strcmp(command, "BLUE") == 0) {
                 if (args != NULL && strcmp(args, "ON") == 0) {
                     GPIOC->ODR |= (1 << 6);
-                    LCD_Print("BLUE ON", COLOR_GREEN);
+                    unified_output("BLUE ON\r\n", COLOR_GREEN);
                 } else if (args != NULL && strcmp(args, "OFF") == 0) {
                     GPIOC->ODR &= ~(1 << 6);
-                    LCD_Print("BLUE OFF", COLOR_RED);
+                    unified_output("BLUE OFF\r\n", COLOR_RED);
                 }
             } else if (strcmp(command, "RED") == 0) {
                 if (args != NULL && strcmp(args, "ON") == 0) {
                     GPIOC->ODR |= (1 << 7);
-                    LCD_Print("RED ON", COLOR_GREEN);
+                    unified_output("RED ON\r\n", COLOR_GREEN);
                 } else if (args != NULL && strcmp(args, "OFF") == 0) {
                     GPIOC->ODR &= ~(1 << 7);
-                    LCD_Print("RED OFF", COLOR_RED);
+                    unified_output("RED OFF\r\n", COLOR_RED);
                 }
             } else if (strcmp(command, "GREEN") == 0) {
                 if (args != NULL && strcmp(args, "ON") == 0) {
                     GPIOC->ODR |= (1 << 8);
-                    LCD_Print("GREEN ON", COLOR_GREEN);
+                    unified_output("GREEN ON\r\n", COLOR_GREEN);
                 } else if (args != NULL && strcmp(args, "OFF") == 0) {
                     GPIOC->ODR &= ~(1 << 8);
-                    LCD_Print("GREEN OFF", COLOR_RED);
+                    unified_output("GREEN OFF\r\n", COLOR_RED);
                 }
             } else if (strcmp(command, "WHITE") == 0) {
                 if (args != NULL && strcmp(args, "ON") == 0) {
                     GPIOC->ODR |= (1 << 9);
-                    LCD_Print("WHITE ON", COLOR_GREEN);
+                    unified_output("WHITE ON\r\n", COLOR_GREEN);
                 } else if (args != NULL && strcmp(args, "OFF") == 0) {
                     GPIOC->ODR &= ~(1 << 9);
-                    LCD_Print("WHITE OFF", COLOR_RED);
+                    unified_output("WHITE OFF\r\n", COLOR_RED);
                 }
             } else if (strcmp(command, "help") == 0) {
                 const char helpMsg[] =
@@ -460,94 +492,80 @@ void handle_serial_and_display(char* command, char* args, char* outBuffer, size_
                     "  GREEN ON / GREEN OFF- Control onboard GREEN LED\r\n"
                     "  WHITE ON / WHITE OFF- Control onboard WHITE LED\r\n"
                     "  exit                - Close the connection\r\n";
-                HAL_UART_Transmit(&huart2, (uint8_t*)helpMsg, (uint16_t)strlen(helpMsg), 1000);
-                LCD_Print("Help message sent to serial.", COLOR_WHITE);
+                unified_output(helpMsg, COLOR_WHITE);
             } else if (strcmp(command, "echo") == 0) {
                 if (args != NULL) {
                     snprintf(outBuffer, outBufferSize, "%s\r\n", args);
-                    HAL_UART_Transmit(&huart2, (uint8_t*)outBuffer, strlen(outBuffer), 1000);
-                    LCD_Print(outBuffer, COLOR_WHITE);
+                    unified_output(outBuffer, COLOR_WHITE);
                 }
             } else if (strcmp(command, "pwd") == 0) {
                 fs_pwd(outBuffer, outBufferSize);
-                HAL_UART_Transmit(&huart2, (uint8_t*)outBuffer, (uint16_t)strlen(outBuffer), 1000);
-                LCD_Print(outBuffer, COLOR_WHITE);
+                unified_output(outBuffer, COLOR_WHITE);
             } else if (strcmp(command, "ls") == 0) {
                 fs_ls(outBuffer, outBufferSize);
-                HAL_UART_Transmit(&huart2, (uint8_t*)outBuffer, (uint16_t)strlen(outBuffer), 1000);
-                LCD_Print(outBuffer, COLOR_WHITE);
+                unified_output(outBuffer, COLOR_WHITE);
             } else if (strcmp(command, "mkdir") == 0) {
                 if (fs_mkdir(args) != 0) {
                     const char errMsg[] = "mkdir failed\r\n";
-                    HAL_UART_Transmit(&huart2, (uint8_t*)errMsg, (uint16_t)strlen(errMsg), 1000);
-                    LCD_Print(errMsg, COLOR_RED);
+                    unified_output(errMsg, COLOR_RED);
                 } else {
                     snprintf(outBuffer, outBufferSize, "mkdir %s success\r\n", args);
-                    LCD_Print(outBuffer, COLOR_GREEN);
+                    unified_output(outBuffer, COLOR_GREEN);
                 }
             } else if (strcmp(command, "cd") == 0) {
                 if (fs_cd(args) != 0) {
                     const char errMsg[] = "cd failed\r\n";
-                    HAL_UART_Transmit(&huart2, (uint8_t*)errMsg, (uint16_t)strlen(errMsg), 1000);
-                    LCD_Print(errMsg, COLOR_RED);
+                    unified_output(errMsg, COLOR_RED);
                 } else {
                     snprintf(outBuffer, outBufferSize, "cd %s success\r\n", args);
-                    LCD_Print(outBuffer, COLOR_GREEN);
+                    unified_output(outBuffer, COLOR_GREEN);
                 }
             } else if (strcmp(command, "rmdir") == 0) {
                 if (fs_rmdir(args) != 0) {
                     const char errMsg[] = "rmdir failed\r\n";
-                    HAL_UART_Transmit(&huart2, (uint8_t*)errMsg, (uint16_t)strlen(errMsg), 1000);
-                    LCD_Print(errMsg, COLOR_RED);
+                    unified_output(errMsg, COLOR_RED);
                 } else {
                     snprintf(outBuffer, outBufferSize, "rmdir %s success\r\n", args);
-                    LCD_Print(outBuffer, COLOR_GREEN);
+                    unified_output(outBuffer, COLOR_GREEN);
                 }
             } else if (strcmp(command, "clear") == 0) {
                 const char clearScreen[] = "\033[2J\033[H";
                 HAL_UART_Transmit(&huart2, (uint8_t*)clearScreen, strlen(clearScreen), 1000);
                 ST7735_FillScreen(COLOR_BLACK);
                 lcd_current_line = 0;
-                LCD_Print("LCD Cleared", COLOR_WHITE);
+                unified_output("LCD Cleared\r\n", COLOR_WHITE);
             } else if (strcmp(command, "touch") == 0) {
                 if (fs_touch(args) != 0) {
                     const char errMsg[] = "touch failed\r\n";
-                    HAL_UART_Transmit(&huart2, (uint8_t*)errMsg, (uint16_t)strlen(errMsg), 1000);
-                    LCD_Print(errMsg, COLOR_RED);
+                    unified_output(errMsg, COLOR_RED);
                 } else {
                     snprintf(outBuffer, outBufferSize, "touch %s success\r\n", args);
-                    LCD_Print(outBuffer, COLOR_GREEN);
+                    unified_output(outBuffer, COLOR_GREEN);
                 }
             } else if (strcmp(command, "cat") == 0) {
                 if (fs_cat(args) != 0) {
                     const char errMsg[] = "cat failed\r\n";
-                    HAL_UART_Transmit(&huart2, (uint8_t*)errMsg, (uint16_t)strlen(errMsg), 1000);
-                    LCD_Print(errMsg, COLOR_RED);
+                    unified_output(errMsg, COLOR_RED);
                 } else {
-                    // fs_cat already transmits to UART. For LCD, it's more complex as it can be large.
-                    // For now, just indicate that cat command was executed.
                     snprintf(outBuffer, outBufferSize, "cat %s executed. Output on serial.\r\n", args);
-                    LCD_Print(outBuffer, COLOR_WHITE);
+                    unified_output(outBuffer, COLOR_WHITE);
                 }
             } else if (strcmp(command, "rm") == 0) {
                 if (fs_rm(args) != 0) {
                     const char errMsg[] = "rm failed\r\n";
-                    HAL_UART_Transmit(&huart2, (uint8_t*)errMsg, (uint16_t)strlen(errMsg), 1000);
-                    LCD_Print(errMsg, COLOR_RED);
+                    unified_output(errMsg, COLOR_RED);
                 } else {
                     snprintf(outBuffer, outBufferSize, "rm %s success\r\n", args);
-                    LCD_Print(outBuffer, COLOR_GREEN);
+                    unified_output(outBuffer, COLOR_GREEN);
                 }
             } else if (strcmp(command, "exit") == 0) {
                 const char exitMsg[] = "Goodbye!\r\n";
-                HAL_UART_Transmit(&huart2, (uint8_t*)exitMsg, (uint16_t)strlen(exitMsg), 1000);
+                unified_output(exitMsg, COLOR_WHITE);
                 HAL_UART_DeInit(&huart2);
-                LCD_Print("Goodbye!", COLOR_WHITE);
                 while(1);
             } else {
                 snprintf(outBuffer, outBufferSize, "Unknown command: %s\r\n", command);
-                HAL_UART_Transmit(&huart2, (uint8_t*)outBuffer, strlen(outBuffer), 1000);
-                LCD_Print(outBuffer, COLOR_RED);
+                unified_output(outBuffer, COLOR_RED);
             }
         }
         
