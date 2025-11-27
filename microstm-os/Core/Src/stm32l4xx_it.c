@@ -293,6 +293,7 @@ void USART2_IRQHandler(void)
             }
             historyIndex = historyCount;
 
+            inPointer = strlen(inBuffer);
             inBuffer[inPointer] = 0;
             dataRxd = true;
             inPointer = 0;
